@@ -1,6 +1,5 @@
 """
-
-File: trainer_deaf.py
+File: litdeaf.py
 Author: Nrupatunga
 Email: nrupatunga.s@byjus.com
 Github: https://github.com/nrupatunga
@@ -12,16 +11,20 @@ from pathlib import Path
 from typing import Union
 
 import pytorch_lightning as pl
+import torch
 from pytorch_lightning import _logger as log
+from torch.nn import functional as F
 from torch.utils.data import DataLoader
 
 try:
     from dataloader.bsd_loader import BsdDataLoader
-except Exception as e:
+    from arch.custom_nets import EdgeAwareNet
+except Exception:
     log.error('Please run $source settings.sh from root directory')
     sys.exit(1)
 
-class deafTrainer(pl.LightningModule):
+
+class deafLitModel(pl.LightningModule):
 
     """LightningModule for deep edge aware filters"""
 
@@ -37,12 +40,16 @@ class deafTrainer(pl.LightningModule):
         self._data_dir = data_dir
         self._batch_size = batch_size
         self._num_workers = num_workers
+        self._model = EdgeAwareNet()
 
     def forward(self, x):
         """forward function
         @x: input tensor for foward pass
         """
-        pass
+        return self._model(x)
+
+    def configure_optimizers(self):
+        return torch.optim.Adam(self.parameters(), lr=0.001)
 
     def train_dataloader(self):
         """train dataloader"""
@@ -56,11 +63,11 @@ class deafTrainer(pl.LightningModule):
 
         return dl_train
 
-    def training_step(self):
+    def training_step(self, batch, batch_idx):
         """Single node training step"""
-        pass
+        x, y = batch
+        y_hat = self(x)
+        loss = F.l1_loss(y_hat, y)
 
-    def training_step_end(self):
-        """combine all the training step
-        """
-        pass
+        tf_logs = {'train_loss': loss}
+        return {'loss': loss, 'log': tf_logs}
