@@ -13,7 +13,6 @@ from loguru import logger
 
 
 class Visualizer():
-
     def __init__(self, env='default', **kwargs):
         self.vis = visdom.Visdom(env=env, **kwargs)
         if not self.vis.check_connection():

@@ -18,26 +18,39 @@ from tqdm import tqdm
 
 try:
     from misc.vis_utils import Visualizer
-except Exception as e:
+except Exception:
     logger.error('Please run $source settings.sh from root directory')
     sys.exit(1)
 
 
 class BsdDataLoader(Dataset):
 
+    GT_W = 56
+    GT_H = 56
+
     """Docstring for BsdDataLoader. """
 
     def __init__(self,
                  path_to_hdf5s: str,
-                 train=True):
+                 train: bool = True,
+                 dbg: bool = False):
         """Init"""
         Dataset.__init__(self)
 
+        logger.info('Preparing dataset')
+
         self._num_patches = 10000
+        self._isTrain = train
+        self._dbg = dbg
+
+        if self._isTrain:
+            hdf5s_path = Path(path_to_hdf5s).joinpath('train')
+        else:
+            hdf5s_path = Path(path_to_hdf5s).joinpath('test')
 
         self._data_files = []
-        hdf5s = Path(path_to_hdf5s).glob('*.hdf5')
-        for i, hdf5 in tqdm(enumerate(hdf5s)):
+        hdf5s = hdf5s_path.glob('*.hdf5')
+        for hdf5 in tqdm(hdf5s):
             self._data_files.append(hdf5)
 
         self._num_hdf5s = len(self._data_files)
@@ -61,18 +74,26 @@ class BsdDataLoader(Dataset):
             image = f['images_{}'.format(img_idx)][()]
             gt = f['labels_{}'.format(img_idx)][()]
 
-        image = cv2.normalize(image, None, alpha=0, beta=1,
-                              norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        idx_h = (image.shape[1] - self.GT_H) // 2
+        idx_w = (image.shape[2] - self.GT_W) // 2
 
-        gt = cv2.normalize(gt, None, alpha=0, beta=1,
-                           norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+        gt = gt[:, idx_h:idx_h + self.GT_H, idx_w:idx_w + self.GT_W]
+
+        assert (gt.shape[1:]) == (self.GT_H, self.GT_W)
+
+        if self._dbg:
+            image = cv2.normalize(image, None, alpha=0, beta=1,
+                                  norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
+            gt = cv2.normalize(gt, None, alpha=0, beta=1,
+                               norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
         return (image, gt)
 
 
 if __name__ == "__main__":
 
-    path_to_hdf5s = '/Users/nrupatunga/2020/Q2/dataset/L0/train/'
-    bsd = BsdDataLoader(path_to_hdf5s=path_to_hdf5s)
+    path_to_hdf5s = '/Users/nrupatunga/2020/Q2/dataset/L0/'
+    bsd = BsdDataLoader(path_to_hdf5s=path_to_hdf5s, dbg=True)
     dataloader = DataLoader(bsd, batch_size=1, shuffle=True, num_workers=0)
 
     viz = Visualizer()
@@ -81,4 +102,3 @@ if __name__ == "__main__":
         label = make_grid(gt, nrow=16, pad_value=0)
         viz.plot_images_np(data, 'data')
         viz.plot_images_np(label, 'gt')
-        time.sleep(2)
