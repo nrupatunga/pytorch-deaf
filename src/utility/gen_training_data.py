@@ -8,6 +8,7 @@ Description: prepare data for training from any image data you have
 from pathlib import Path
 
 import cv2
+import random
 import h5py
 import numpy as np
 from absl import app, flags
@@ -35,8 +36,8 @@ def random_crop(image, crop_width, crop_height):
     max_x = image.shape[1] - crop_width
     max_y = image.shape[0] - crop_height
 
-    x = np.random.randint(0, max_x)
-    y = np.random.randint(0, max_y)
+    x = random.randint(0, max_x)
+    y = random.randint(0, max_y)
 
     crop = image[y: y + crop_height, x: x + crop_width]
 
@@ -72,7 +73,6 @@ def gen_sample_pair(patch, dbg=False):
         vout_d = cv2.cvtColor(vout_d, cv2.COLOR_BGR2GRAY)
         out = np.hstack((vin_d, vout_d))
         cv2.imwrite(f'output.png', out)
-        __import__('pdb').set_trace()
 
     # match the implementation of the dataloader
     vin = np.transpose(vin, axes=(2, 0, 1))
@@ -103,10 +103,10 @@ def main(_):
         print(f'Extracting patch batch: {m + 1} / {101}')
         for i in tqdm(range(num_patches // 8), desc=f'{m}th file:'):
             if m != 100:
-                idx = np.random.randint(0, len(train_images))
+                idx = random.randint(0, len(train_images))
                 img = cv2.imread(str(train_images[idx])) / 255.
             else:
-                idx = np.random.randint(0, len(val_images))
+                idx = random.randint(0, len(val_images))
                 img = cv2.imread(str(val_images[idx])) / 255.
 
             patch = random_crop(img, patch_dim, patch_dim)

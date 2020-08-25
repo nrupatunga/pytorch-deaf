@@ -37,7 +37,7 @@ class L0Smoothing:
         if isGray:
             img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-        S = img / 256
+        S = img
         if S.ndim < 3:
             S = S[..., np.newaxis]
 
