@@ -14,6 +14,7 @@ import numpy as np
 from absl import app, flags
 from imutils import paths
 from tqdm import tqdm
+import multiprocessing
 
 from L0_Smoothing import L0Smoothing
 
@@ -36,8 +37,8 @@ def random_crop(image, crop_width, crop_height):
     max_x = image.shape[1] - crop_width
     max_y = image.shape[0] - crop_height
 
-    x = random.randint(0, max_x)
-    y = random.randint(0, max_y)
+    x = random.randint(0, max_x - 1)
+    y = random.randint(0, max_y - 1)
 
     crop = image[y: y + crop_height, x: x + crop_width]
 
@@ -80,34 +81,21 @@ def gen_sample_pair(patch, dbg=False):
     return vin, vout
 
 
-def main(_):
-    num_patches = FLAGS.num_patches
-    patch_dim = FLAGS.patch_dim
+def generate(params):
+    """generate images """
+    train_images, val_images, patch_dim, num_patches, m = params
+    sample_shape = (3, patch_dim, patch_dim, num_patches)
+    samples = np.zeros(sample_shape)
+    labels = np.zeros(sample_shape)
 
-    root_dir = FLAGS.root_dir
-    root_dir = Path(root_dir)
-
-    train_dir = root_dir.joinpath('train')
-    val_dir = root_dir.joinpath('val')
-
-    train_images = list(paths.list_images(train_dir))
-    val_images = list(paths.list_images(val_dir))
-
-    samples = np.zeros((3, patch_dim, patch_dim, num_patches))
-    labels = np.zeros_like(samples)
-
-    print(f'Len of train: {len(train_images)}')
-    print(f'Len of val: {len(val_images)}')
-
-    for m in range(101):
-        print(f'Extracting patch batch: {m + 1} / {101}')
-        for i in tqdm(range(num_patches // 8), desc=f'{m}th file:'):
-            if m != 100:
-                idx = random.randint(0, len(train_images))
-                img = cv2.imread(str(train_images[idx])) / 255.
-            else:
-                idx = random.randint(0, len(val_images))
-                img = cv2.imread(str(val_images[idx])) / 255.
+    for i in range(num_patches // 8):
+        print(f'Process: {m}, Id: {i}')
+        if m != 100:
+            idx = random.randint(0, len(train_images) - 1)
+            img = cv2.imread(str(train_images[idx])) / 255.
+        else:
+            idx = random.randint(0, len(val_images) - 1)
+            img = cv2.imread(str(val_images[idx])) / 255.
 
             patch = random_crop(img, patch_dim, patch_dim)
             patch_hor_flip = np.transpose(patch, axes=(1, 0, 2))
@@ -124,14 +112,43 @@ def main(_):
                 samples[..., idx_list[idx + 4]] = vin
                 labels[..., idx_list[idx + 4]] = vout
 
-        Path(FLAGS.save_dir).mkdir(parents=True, exist_ok=True)
-        out_file = f'{FLAGS.save_dir}/{m}.hdf5'
-        with h5py.File(out_file, 'w') as f:
-            for i in range(num_patches):
-                f.create_dataset(f'images_{i}', data=samples[..., i],
-                                 compression='gzip')
-                f.create_dataset(f'labels_{i}', data=labels[..., i],
-                                 compression='gzip')
+    Path(FLAGS.save_dir).mkdir(parents=True, exist_ok=True)
+    out_file = f'{FLAGS.save_dir}/{m}.hdf5'
+    with h5py.File(out_file, 'w') as f:
+        print(f'Written file: {m}')
+        for i in range(num_patches):
+            f.create_dataset(f'images_{i}', data=samples[..., i],
+                             compression='gzip')
+            f.create_dataset(f'labels_{i}', data=labels[..., i],
+                             compression='gzip')
+
+
+def main(_):
+    num_patches = FLAGS.num_patches
+    patch_dim = FLAGS.patch_dim
+
+    root_dir = FLAGS.root_dir
+    root_dir = Path(root_dir)
+
+    train_dir = root_dir.joinpath('train')
+    val_dir = root_dir.joinpath('val')
+
+    train_images = list(paths.list_images(train_dir))
+    val_images = list(paths.list_images(val_dir))
+
+    print(f'Len of train: {len(train_images)}')
+    print(f'Len of val: {len(val_images)}')
+
+    jobs = []
+    for i in range(101):
+        p = multiprocessing.Process(target=generate,
+                                    args=[(train_images, val_images,
+                                           patch_dim, num_patches, i)])
+        jobs.append(p)
+        p.start()
+
+    for proc in jobs:
+        proc.join()
 
 
 if __name__ == "__main__":
