@@ -2,11 +2,8 @@
 File: bsd_loader.py
 Author: Nrupatunga
 Email: nrupatunga.s@byjus.com
-Github: https://github.com/nrupatunga
-Description: BSDS500 pathches dataloader
-"""
+Github: https://github.com/nrupatunga Description: BSDS500 pathches dataloader """
 import sys
-import time
 from pathlib import Path
 
 import cv2
@@ -17,7 +14,7 @@ from torchvision.utils import make_grid
 from tqdm import tqdm
 
 try:
-    from misc.vis_utils import Visualizer
+    from src.misc.vis_utils import Visualizer
 except Exception:
     logger.error('Please run $source settings.sh from root directory')
     sys.exit(1)
@@ -46,10 +43,10 @@ class BsdDataLoader(Dataset):
         if self._isTrain:
             hdf5s_path = Path(path_to_hdf5s).joinpath('train')
         else:
-            hdf5s_path = Path(path_to_hdf5s).joinpath('test')
+            hdf5s_path = Path(path_to_hdf5s).joinpath('val')
 
         self._data_files = []
-        hdf5s = hdf5s_path.glob('*.hdf5')
+        hdf5s = hdf5s_path.rglob('*.hdf5')
         for hdf5 in tqdm(hdf5s):
             self._data_files.append(hdf5)
 
@@ -71,8 +68,15 @@ class BsdDataLoader(Dataset):
 
         hdf5_file = self._data_files[idx_hdf5]
         with h5py.File(hdf5_file, 'r') as f:
-            image = f['images_{}'.format(img_idx)][()]
-            gt = f['labels_{}'.format(img_idx)][()]
+            try:
+                image = f['images_{}'.format(img_idx)][()]
+                gt = f['labels_{}'.format(img_idx)][()]
+            except KeyError as e:
+                logger.error(f'File:{hdf5_file}, Key: {img_idx}')
+                raise e
+            except OSError as e:
+                logger.error(f'File:{hdf5_file}, Key: {img_idx}')
+                raise e
 
         idx_h = (image.shape[1] - self.GT_H) // 2
         idx_w = (image.shape[2] - self.GT_W) // 2
@@ -92,12 +96,14 @@ class BsdDataLoader(Dataset):
 
 if __name__ == "__main__":
 
-    path_to_hdf5s = '/Users/nrupatunga/2020/Q2/dataset/L0/'
-    bsd = BsdDataLoader(path_to_hdf5s=path_to_hdf5s, dbg=True)
-    dataloader = DataLoader(bsd, batch_size=1, shuffle=True, num_workers=0)
+    path_to_hdf5s = '/home/nthere/2020/pytorch-deaf/data/DIV_superres/hdf5'
+    bsd = BsdDataLoader(path_to_hdf5s=path_to_hdf5s,
+                        train=True,
+                        dbg=True)
+    dataloader = DataLoader(bsd, batch_size=64, shuffle=True, num_workers=0)
 
     viz = Visualizer()
-    for i, (img, gt) in enumerate(dataloader):
+    for i, (img, gt) in tqdm(enumerate(dataloader)):
         data = make_grid(img, nrow=16, pad_value=0)
         label = make_grid(gt, nrow=16, pad_value=0)
         viz.plot_images_np(data, 'data')
