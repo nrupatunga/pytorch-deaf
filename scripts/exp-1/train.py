@@ -14,11 +14,11 @@ from litdeaf import deafLitModel
 FLAGS = flags.FLAGS
 flags.DEFINE_string(
     'data_dir', '/Users/nrupatunga/2020/Q2/dataset/L0/', 'parent director of the data')
-flags.DEFINE_string('save_dir', './huber_loss', 'save directory')
+flags.DEFINE_string('save_dir', './our_data', 'save directory')
 flags.DEFINE_string('save_prefix', 'deaf_', 'prefix for model')
 flags.DEFINE_integer('batch_size', 128, 'batch size')
 flags.DEFINE_integer('num_workers', 6, 'number of workers')
-flags.DEFINE_float('lr', 0.01, 'learning rate')
+flags.DEFINE_float('lr', 0.001, 'learning rate')
 flags.DEFINE_enum('norm_type', 'batch_norm', ['batch_norm',
                                               'layer_norm',
                                               'instance_norm',

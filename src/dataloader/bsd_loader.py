@@ -91,6 +91,12 @@ class BsdDataLoader(Dataset):
 
             gt = cv2.normalize(gt, None, alpha=0, beta=1,
                                norm_type=cv2.NORM_MINMAX, dtype=cv2.CV_32F)
+
+        # This might not be needed
+        # mean and std, normalization
+        # used from matlab implementation of deaf from the author
+        image = image - 8.8276e-7
+        image = image / 0.1637
         return (image, gt)
 
 

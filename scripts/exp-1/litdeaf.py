@@ -45,7 +45,7 @@ class deafLitModel(pl.LightningModule):
         self.save_hyperparameters()
         self.dbg = True
         self.eps = 1e-6
-        self.w_r = 1e-1
+        self.w_r = 1e-2
         log.info('---' * 12)
         log.info(f'Parameters: {self.hparams}')
         log.info('---' * 12)
@@ -81,8 +81,8 @@ class deafLitModel(pl.LightningModule):
     def _calculate_loss(self, y_hat, y):
         """Calculate the loss
         """
-        # loss_1 = F.mse_loss(y_hat, y, reduction='sum') * 0.5
-        loss_1 = F.smooth_l1_loss(y_hat, y, reduction='sum') * 0.5
+        loss_1 = F.mse_loss(y_hat, y, reduction='sum') * 0.5
+        # loss_1 = F.smooth_l1_loss(y_hat, y, reduction='sum') * 0.5
         loss_2 = torch.sqrt(torch.square(y_hat) + self.eps).sum()
         loss = (loss_1 + self.w_r * loss_2) / y_hat.shape[0]
 

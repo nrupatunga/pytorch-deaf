@@ -1,0 +1,5 @@
+batch_size: 128
+data_dir: /home/nthere/2020/pytorch-deaf/data/DIV_superres/hdf5/
+lr: 0.001
+norm_type: batch_norm
+num_workers: 6

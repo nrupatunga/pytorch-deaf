@@ -19,13 +19,32 @@ out_root_dir = f'/home/nthere/2020/pytorch-deaf/data/train/'
 read = True
 
 if read:
-    with h5py.File('/home/nthere/2020/pytorch-deaf/data/train/0.hdf5', 'r') as fout:
-        start = time.time()
-        for i in range(50000):
-            image = fout['images_{}'.format(i)][()]
-        end = time.time()
-        print(end - start)
-        print(image.shape)
+    root_dir = '/home/nthere/2020/pytorch-deaf/data/DIV_superres/hdf5/train/'
+    hdf5_files = Path(root_dir).rglob('*.hdf5')
+    images = []
+    means = []
+    stds = []
+    for i, f in tqdm(enumerate(hdf5_files)):
+        with h5py.File(f) as fout:
+            for j in range(10000):
+                image = fout['images_{}'.format(j)][()]
+                images.append(image)
+
+        if ((i + 1) % 10) == 0:
+            images = np.asarray(images)
+            means.append(np.mean(images, 0))
+            stds.append(np.std(images, 0))
+            del images
+            images = []
+
+        if (i == 90):
+            break
+
+    means = np.asarray(means)
+    stds = np.asarray(stds)
+    mean = np.mean(means, 1)
+    std = np.std(stds, 1)
+
 else:
     for i, mat_file in tqdm(enumerate(Path(mat_root_dir).glob('*.mat'))):
         out_hdf5 = Path(out_root_dir).joinpath('{}.hdf5'.format(i))

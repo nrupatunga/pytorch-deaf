@@ -1,20 +1,22 @@
 """
+
 File: gen_training_data.py
 Author: Nrupatunga
 Email: nrupatunga.s@byjus.com
 Github: https://github.com/nrupatunga
 Description: prepare data for training from any image data you have
 """
+import multiprocessing
+import random
+from multiprocessing import Manager
 from pathlib import Path
 
 import cv2
-import random
 import h5py
 import numpy as np
 from absl import app, flags
 from imutils import paths
 from tqdm import tqdm
-import multiprocessing
 
 from L0_Smoothing import L0Smoothing
 
@@ -83,44 +85,53 @@ def gen_sample_pair(patch, dbg=False):
 
 def generate(params):
     """generate images """
-    train_images, val_images, patch_dim, num_patches, m = params
-    sample_shape = (3, patch_dim, patch_dim, num_patches)
-    samples = np.zeros(sample_shape)
-    labels = np.zeros(sample_shape)
+    train_images, val_images, samples_b, labels_b, patch_dim, num_patches, m = params
+
+    samples = samples_b[m]
+    labels = labels_b[m]
 
     for i in range(num_patches // 8):
-        print(f'Process: {m}, Id: {i}')
+        print(f'Batch: {m}, Id: {i}')
         if m != 100:
             idx = random.randint(0, len(train_images) - 1)
             img = cv2.imread(str(train_images[idx])) / 255.
+            img = img.astype(np.float32)
         else:
             idx = random.randint(0, len(val_images) - 1)
             img = cv2.imread(str(val_images[idx])) / 255.
+            img = img.astype(np.float32)
 
-            patch = random_crop(img, patch_dim, patch_dim)
-            patch_hor_flip = np.transpose(patch, axes=(1, 0, 2))
+        patch = random_crop(img, patch_dim, patch_dim)
+        patch_hor_flip = np.transpose(patch, axes=(1, 0, 2))
 
-            idx_list = np.arange(8)
-            for idx in range(4):
-                patch_rotated = np.rot90(patch, k=idx)
-                vin, vout = gen_sample_pair(patch_rotated)
-                samples[..., idx_list[idx]] = vin
-                labels[..., idx_list[idx]] = vout
+        idx_list = np.arange(8)
+        for idx in range(4):
+            patch_rotated = np.rot90(patch, k=idx)
+            vin, vout = gen_sample_pair(patch_rotated)
+            samples.append(vin)
+            labels.append(vout)
 
-                patch_rotated = np.rot90(patch_hor_flip, k=idx)
-                vin, vout = gen_sample_pair(patch_rotated)
-                samples[..., idx_list[idx + 4]] = vin
-                labels[..., idx_list[idx + 4]] = vout
+            patch_rotated = np.rot90(patch_hor_flip, k=idx)
+            vin, vout = gen_sample_pair(patch_rotated)
+            samples.append(vin)
+            labels.append(vout)
+
+    samples = np.asarray(samples, dtype=np.float32)
+    labels = np.asarray(labels, dtype=np.float32)
 
     Path(FLAGS.save_dir).mkdir(parents=True, exist_ok=True)
     out_file = f'{FLAGS.save_dir}/{m}.hdf5'
     with h5py.File(out_file, 'w') as f:
         print(f'Written file: {m}')
         for i in range(num_patches):
-            f.create_dataset(f'images_{i}', data=samples[..., i],
+            f.create_dataset(f'images_{i}', data=samples[i],
                              compression='gzip')
-            f.create_dataset(f'labels_{i}', data=labels[..., i],
+            f.create_dataset(f'labels_{i}', data=labels[i],
                              compression='gzip')
+
+
+def lol(lst, sz):
+    return [lst[i: i + sz] for i in range(0, len(lst), sz)]
 
 
 def main(_):
@@ -139,16 +150,34 @@ def main(_):
     print(f'Len of train: {len(train_images)}')
     print(f'Len of val: {len(val_images)}')
 
-    jobs = []
-    for i in range(101):
-        p = multiprocessing.Process(target=generate,
-                                    args=[(train_images, val_images,
-                                           patch_dim, num_patches, i)])
-        jobs.append(p)
-        p.start()
+    sample_shape = (3, patch_dim, patch_dim, num_patches)
 
-    for proc in jobs:
-        proc.join()
+    num_chunks = 10
+    num_batches = 101
+    chunks = lol(np.arange(num_batches), num_chunks)
+    train_chunks = lol(np.arange(len(train_images)), len(train_images)
+                       // num_chunks)
+
+    manager = Manager()
+    samples = manager.list([[]] * num_batches)
+    labels = manager.list([[]] * num_batches)
+
+    for i, c in enumerate(chunks):
+        train_chunk = train_chunks[min(i, len(train_chunks) - 1)]
+        jobs = []
+        train_imgs_chunk = [train_images[i] for i in train_chunk]
+        for m in c:
+            p = multiprocessing.Process(target=generate,
+                                        args=[(train_imgs_chunk,
+                                               val_images,
+                                               samples, labels,
+                                               patch_dim, num_patches,
+                                               m)])
+            jobs.append(p)
+            p.start()
+
+        for proc in jobs:
+            proc.join()
 
 
 if __name__ == "__main__":

@@ -24,7 +24,7 @@ class EdgeAwareNet(nn.Module):
         self.layers = []
 
         self.conv1 = nn.Conv2d(3, nbLayers0, kernel_size=16,
-                               stride=1, padding=4, bias=True)
+                               stride=1, padding=0, bias=True)
         # self.nonlin1 = nn.ReLU(inplace=True)
         self.nonlin1 = nn.Tanh()
 
@@ -34,8 +34,10 @@ class EdgeAwareNet(nn.Module):
         self.nonlin2 = nn.Tanh()
 
         self.conv3 = nn.Conv2d(nbLayers1, 3, kernel_size=8,
-                               stride=1, padding=3, bias=True)
-        self.nonlin3 = nn.Tanh()
+                               stride=1, padding=7, bias=True,
+                               padding_mode='replicate')
+        # self.nonlin3 = nn.Tanh()
+        # self.nonlin3 = nn.Sigmoid()
 
         self.layers.append(self.conv1)
         self.layers.append(self.nonlin1)
@@ -54,7 +56,7 @@ class EdgeAwareNet(nn.Module):
         x = self.nonlin2(x)
 
         x = self.conv3(x)
-        x = self.nonlin3(x)
+        # x = self.nonlin3(x)
 
         return x
 
@@ -62,7 +64,8 @@ class EdgeAwareNet(nn.Module):
         """Initialize the extra layers """
         for m in self.layers:
             if isinstance(m, nn.Conv2d):
-                init.normal_(m.weight.data, mean=0.0, std=1e-3)
+                init.normal_(m.weight.data, mean=0.0, std=1)
+                m.weight.data = m.weight.data * 1e-3
                 init.zeros_(m.bias.data)
 
 
