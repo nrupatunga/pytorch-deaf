@@ -1,9 +1,9 @@
 <!-- PROJECT LOGO -->
 <p align="center">
-  <h3 align="center">DEAF-PyTorch</h3>
+  <h3 align="center">Deep Edge Aware Filters (DEAF)</h3>
 
   <p align="center">
-    PyTorch implementation of "Deep Edge Aware Filters"
+    PyTorch implementation
     <br />
     <br />
     <a href="https://github.com/nrupatunga/pytorch-deaf/issues">Report Bug</a>
