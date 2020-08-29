@@ -1,0 +1,17 @@
+matplotlib==3.0.3
+absl_py==0.9.0
+visdom==0.1.8.9
+gradio==1.1.6
+tqdm==4.46.0
+torchsummary==1.5.1
+scipy==1.4.1
+h5py==2.10.0
+torch==1.5.0+cu101
+opencv_python==3.4.9.33
+loguru==0.5.0
+numpy==1.18.5
+pytorch_lightning==0.9.0
+imutils==0.5.3
+torchvision==0.6.0+cu101
+absl==0.0
+Pillow==7.2.0
